@@ -6,9 +6,8 @@ export default async function handler(req, res) {
   const { storeId, status, search } = req.query;
 
   if (req.method === 'GET') {
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
-
-    const where = { storeId };
+    const where = {};
+    if (storeId && storeId !== 'any') where.storeId = storeId;
     if (status && status !== 'all') where.status = status;
     if (search) {
       where.OR = [

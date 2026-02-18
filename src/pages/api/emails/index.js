@@ -6,10 +6,11 @@ export default async function handler(req, res) {
   const { storeId } = req.query;
 
   if (req.method === 'GET') {
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    const where = {};
+    if (storeId && storeId !== 'any') where.storeId = storeId;
 
     const emails = await prisma.email.findMany({
-      where: { storeId },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });

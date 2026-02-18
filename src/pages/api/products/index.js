@@ -6,7 +6,8 @@ export default async function handler(req, res) {
   const { storeId } = req.query;
 
   if (req.method === 'GET') {
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    const where = {};
+    if (storeId && storeId !== 'any') where.storeId = storeId;
 
     const forecast = req.query.forecast === 'true';
 
@@ -16,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     const products = await prisma.product.findMany({
-      where: { storeId },
+      where,
       orderBy: { name: 'asc' },
     });
 
