@@ -321,6 +321,17 @@ function SettingsPage(props) {
     }).catch(function(e){ setMsg("Error: " + e.message); setConnecting(false); });
   }
 
+  function connectOAuth() {
+    var shop = url || prompt("Enter your Shopify store URL (e.g. yourstore.myshopify.com):");
+    if (!shop) return;
+    shop = shop.replace("https://","").replace("http://","").replace("/","");
+    var clientId = "89f38b061e1c175667baa632a1122c70";
+    var redirect = window.location.origin + "/api/auth/callback";
+    var scopes = "read_orders,write_orders,read_products,write_products,read_customers,read_fulfillments,write_fulfillments,read_inventory,write_inventory";
+    var authUrl = "https://" + shop + "/admin/oauth/authorize?client_id=" + clientId + "&scope=" + scopes + "&redirect_uri=" + encodeURIComponent(redirect);
+    window.location.href = authUrl;
+  }
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:24}}>
       <div><h2 style={{fontSize:22,fontWeight:700,color:"#e2e8f0",margin:0}}>Settings</h2><p style={{color:"#64748b",fontSize:13,marginTop:4}}>Connect your Shopify store</p></div>
@@ -340,7 +351,9 @@ function SettingsPage(props) {
             <input type="password" value={token} onChange={function(e){setToken(e.target.value);}} placeholder="shpat_xxxxxxxxxxxxxxxxxxxxx" style={{width:"100%",padding:"10px 14px",background:"#12121f",border:"1px solid #2a2a3e",borderRadius:10,color:"#e2e8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}/>
           </div>
         </div>
-        <Btn onClick={connect} disabled={connecting||!url||!token}>{connecting?"Connecting...":"Connect Store"}</Btn>
+        <Btn onClick={connect} disabled={connecting||!url||!token}>{connecting?"Connecting...":"Connect with Token"}</Btn>
+        <span style={{margin:"0 8px",color:"#64748b",fontSize:12}}>or</span>
+        <Btn v="success" onClick={connectOAuth} disabled={!url}>Connect with Shopify OAuth</Btn>
         {msg && <div style={{marginTop:12,fontSize:13,color:msg.indexOf("Connected")>-1?"#34d399":"#f87171"}}>{msg}</div>}
       </Card>
       <Card>
