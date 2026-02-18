@@ -1,0 +1,186 @@
+// ============================================
+// BACKEND.IO — Database Schema
+// ============================================
+// This defines all your database tables.
+// After editing, run: npx prisma db push
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Store settings (one row per connected store) ---
+model Store {
+  id              String   @id @default(cuid())
+  shopifyUrl      String   @unique        // yourstore.myshopify.com
+  accessToken     String                  // Shopify API token (encrypted in production)
+  name            String   @default("")
+  email           String   @default("")   // store owner email
+  domain          String?                 // custom email domain (e.g. yourdomain.com)
+  domainVerified  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  orders          Order[]
+  products        Product[]
+  emails          Email[]
+  trackingConfig  TrackingConfig?
+  emailFlows      EmailFlow[]
+  profitEntries   ProfitEntry[]
+}
+
+// --- Orders synced from Shopify ---
+model Order {
+  id              String   @id @default(cuid())
+  shopifyId       String   @unique        // Shopify order ID
+  orderNumber     String                  // e.g. "#4012"
+  customerName    String
+  customerEmail   String
+  product         String                  // main product name
+  amount          Float
+  currency        String   @default("EUR")
+  status          String   @default("unfulfilled") // unfulfilled, shipped, at_post_office, delivered, cancelled
+  date            DateTime
+  address         String
+  city            String   @default("")
+  zip             String   @default("")
+  country         String   @default("")
+  addressValid    Boolean  @default(true)
+  trackingNumber  String?
+  trackingUrl     String?
+  carrier         String?
+  fulfillmentId   String?
+  lastTrackEvent  String?                 // last tracking status text
+  lastTrackDate   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  emails          Email[]
+  trackingEvents  TrackingEvent[]
+
+  @@index([storeId])
+  @@index([trackingNumber])
+  @@index([status])
+}
+
+// --- Tracking events for each order ---
+model TrackingEvent {
+  id          String   @id @default(cuid())
+  status      String               // e.g. "in_transit", "delivered", "at_post_office"
+  description String               // human-readable description
+  location    String   @default("")
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+// --- Products synced from Shopify ---
+model Product {
+  id            String   @id @default(cuid())
+  shopifyId     String   @unique
+  name          String
+  sku           String   @default("")
+  price         Float
+  cost          Float    @default(0)     // your cost price for profit calc
+  stock         Int      @default(0)
+  salesPerDay   Float    @default(0)     // rolling average
+  inStock       Boolean  @default(true)
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+}
+
+// --- Emails sent by the system ---
+model Email {
+  id          String   @id @default(cuid())
+  to          String
+  customer    String
+  subject     String
+  body        String   @default("")
+  type        String               // wrong_address, post_office, tracking_update, flow_email
+  status      String   @default("queued") // queued, sent, failed, bounced
+  sentAt      DateTime?
+  openedAt    DateTime?
+  repliedAt   DateTime?
+  flowStepId  String?              // which email flow step triggered this
+  createdAt   DateTime @default(now())
+
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([orderId])
+  @@index([type])
+}
+
+// --- Tracking page customizer config (JSON blob for section layout) ---
+model TrackingConfig {
+  id              String   @id @default(cuid())
+  theme           Json     @default("{}")    // { primary, accent, bg, text, storeName }
+  sections        Json     @default("[]")    // array of section configs from the editor
+  customCss       String   @default("")
+  customHead      String   @default("")      // custom <head> code (analytics etc)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  storeId         String   @unique
+  store           Store    @relation(fields: [storeId], references: [id])
+}
+
+// --- Email flow automation steps ---
+model EmailFlow {
+  id          String   @id @default(cuid())
+  trigger     String               // order_confirmed, shipped, in_transit, delivered, etc.
+  delay       String   @default("immediately") // immediately, 24h, 48h, 3d
+  subject     String
+  body        String   @default("")
+  template    String               // template identifier
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+}
+
+// --- Monthly profit/loss entries ---
+model ProfitEntry {
+  id          String   @id @default(cuid())
+  month       String               // e.g. "2026-02"
+  revenue     Float    @default(0)
+  costs       Float    @default(0) // COGS
+  adSpend     Float    @default(0)
+  shipping    Float    @default(0)
+  otherCosts  Float    @default(0)
+  profit      Float    @default(0) // auto-calculated
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, month])
+}
