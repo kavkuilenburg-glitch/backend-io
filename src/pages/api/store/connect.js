@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     // Test the connection by making a simple Shopify API call
-    const testUrl = `https://${shopifyUrl}/admin/api/2024-01/shop.json`;
+    const testUrl = `https://${shopifyUrl}/admin/api/2026-01/shop.json`;
     const testRes = await fetch(testUrl, {
       headers: { 'X-Shopify-Access-Token': accessToken },
     });
